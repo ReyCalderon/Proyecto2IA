@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Traductor de Señas</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <h1>Traductor de Lenguaje de Señas a Texto</h1>
+
+    <div class="video-container">
+        <img id="video" class="video" src="{{ url_for('video') }}" alt="Video de cámara" />
+    </div>
+
+    <div class="botones">
+        <button onclick="activarCamara()">Activar Cámara</button>
+        <button onclick="desactivarCamara()">Desactivar Cámara</button>
+        <button onclick="guardarTexto()">Guardar Texto Detectado</button>
+    </div>
+
+    <div class="texto-detectado">
+        <h3>Texto Detectado:</h3>
+        <p id="texto-detectado">Esperando entrada...</p>
+    </div>
+
+    <footer>
+        Proyecto Final — IA 2025<br>
+        Universidad Rafael Landívar
+    </footer>
+
+  <script>
+    function activarCamara() {
+        const video = document.getElementById('video');
+        video.src = "{{ url_for('video') }}";
+        video.style.display = "block";
+        video.style.margin = "20px auto";     // centra horizontalmente
+        video.style.display = "block";        // asegúrate que sea visible
+    }
+
+    function desactivarCamara() {
+        const video = document.getElementById('video');
+        video.src = "";
+        video.style.display = "none";
+    }
+
+    function guardarTexto() {
+        fetch("/texto")
+            .then(response => response.text())
+            .then(texto => {
+                document.getElementById("texto-detectado").innerText = texto;
+            });
+    }
+  </script>
+</body>
+</html>
