@@ -16,11 +16,12 @@
         <button onclick="activarCamara()">Activar Cámara</button>
         <button onclick="desactivarCamara()">Desactivar Cámara</button>
         <button onclick="guardarTexto()">Guardar Texto Detectado</button>
+        <button onclick="fetch('/eliminar_ultima')">Eliminar Última Letra</button>
+        <button onclick="fetch('/reiniciar_palabra')">Reiniciar Palabra</button>
     </div>
 
     <div class="texto-detectado">
-        <h3>Texto Detectado:</h3>
-        <p id="texto-detectado">Esperando entrada...</p>
+      <p id="textoDetectado">Esperando entrada...</p>
     </div>
 
     <footer>
@@ -44,11 +45,11 @@
     }
 
     function guardarTexto() {
-        fetch("/texto")
-            .then(response => response.text())
-            .then(texto => {
-                document.getElementById("texto-detectado").innerText = texto;
-            });
+      fetch('/texto')
+        .then(response => response.text())
+        .then(texto => {
+          document.getElementById('textoDetectado').innerHTML = texto;
+        });
     }
   </script>
 </body>

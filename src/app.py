@@ -3,6 +3,9 @@ import cv2
 import numpy as np
 import tensorflow as tf
 import pickle
+import time
+
+historial_texto = []  # Lista para guardar frases detectadas
 
 # -------------------- CARGAR MODELO Y ETIQUETAS --------------------
 with open("modelo/clasificador_letras.pkl", "rb") as f:
@@ -23,9 +26,10 @@ ultima_letra = ""
 contador_repeticiones = 0
 repeticiones_necesarias = 30
 texto_completo = ""
+ultimo_registro = time.time()
 
 def generar_video():
-    global ultima_letra, contador_repeticiones, texto_completo
+    global ultima_letra, contador_repeticiones, texto_completo, ultimo_registro
     cam = cv2.VideoCapture(0)
 
     while True:
@@ -49,8 +53,11 @@ def generar_video():
             contador_repeticiones = 0
             ultima_letra = letra_actual
 
-        if contador_repeticiones == repeticiones_necesarias:
-            texto_completo += letra_actual
+        if contador_repeticiones >= repeticiones_necesarias:
+            tiempo_actual = time.time()
+            if tiempo_actual - ultimo_registro > 2.0:  # 2 segundos de cooldown
+                texto_completo += letra_actual
+                ultimo_registro = tiempo_actual
             contador_repeticiones = 0
 
         # Mostrar letra en la imagen
@@ -76,10 +83,24 @@ def video():
 
 @app.route('/texto')
 def texto():
+    global texto_completo, historial_texto
+    if texto_completo.strip():
+        historial_texto.append(texto_completo.strip())  # guardar
+        texto_completo = ""  # reiniciar palabra
+    return "<br>".join(historial_texto)  # mostrar todo el historial
+
+@app.route('/reiniciar_palabra')
+def reiniciar_palabra():
     global texto_completo
-    texto = texto_completo
-    texto_completo = ""  # 🔄 Reinicia el texto una vez enviado
-    return texto
+    texto_completo = ""
+    return "Palabra reiniciada"
+
+@app.route('/eliminar_ultima')
+def eliminar_ultima():
+    global texto_completo
+    if texto_completo:
+        texto_completo = texto_completo[:-1]
+    return "Letra eliminada"
 
 # -------------------- INICIO --------------------
 if __name__ == '__main__':
