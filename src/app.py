@@ -4,6 +4,12 @@ import numpy as np
 import tensorflow as tf
 import pickle
 import time
+import mediapipe as mp
+
+
+mp_hands = mp.solutions.hands
+hands = mp_hands.Hands(static_image_mode=False, max_num_hands=1, min_detection_confidence=0.7)
+mp_drawing = mp.solutions.drawing_utils
 
 historial_texto = []  # Lista para guardar frases detectadas
 
@@ -24,7 +30,7 @@ app = Flask(__name__)
 img_size = 64
 ultima_letra = ""
 contador_repeticiones = 0
-repeticiones_necesarias = 30
+repeticiones_necesarias = 15
 texto_completo = ""
 ultimo_registro = time.time()
 
@@ -37,32 +43,48 @@ def generar_video():
         if not ret:
             break
 
-        # Preprocesar imagen
-        img = cv2.resize(frame, (img_size, img_size))
-        img = np.expand_dims(img, axis=0)
-        img = img.astype("float32") / 255.0
+        # Detectar mano con MediaPipe
+        rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+        resultado = hands.process(rgb)
 
-        # Predecir
-        pred = modelo.predict(img)
-        letra_actual = label_binarizer.inverse_transform(pred)[0]
+        if resultado.multi_hand_landmarks:
+            for mano in resultado.multi_hand_landmarks:
+                # Obtener coordenadas de la mano
+                h, w, _ = frame.shape
+                puntos = [(int(l.x * w), int(l.y * h)) for l in mano.landmark]
 
-        # Estabilización por repetición
-        if letra_actual == ultima_letra:
-            contador_repeticiones += 1
-        else:
-            contador_repeticiones = 0
-            ultima_letra = letra_actual
+                # Calcular el área que rodea la mano
+                x_coords = [p[0] for p in puntos]
+                y_coords = [p[1] for p in puntos]
+                x1, y1 = max(min(x_coords) - 20, 0), max(min(y_coords) - 20, 0)
+                x2, y2 = min(max(x_coords) + 20, w), min(max(y_coords) + 20, h)
 
-        if contador_repeticiones >= repeticiones_necesarias:
-            tiempo_actual = time.time()
-            if tiempo_actual - ultimo_registro > 2.0:  # 2 segundos de cooldown
-                texto_completo += letra_actual
-                ultimo_registro = tiempo_actual
-            contador_repeticiones = 0
+                mano_recortada = frame[y1:y2, x1:x2]
+                mano_redimensionada = cv2.resize(mano_recortada, (img_size, img_size))
+                img = np.expand_dims(mano_redimensionada, axis=0)
+                img = img.astype("float32") / 255.0
 
-        # Mostrar letra en la imagen
-        cv2.putText(frame, f"Letra: {letra_actual}", (10, 40), cv2.FONT_HERSHEY_SIMPLEX, 1, (0,255,0), 2)
-        cv2.putText(frame, f"Texto: {texto_completo}", (10, 80), cv2.FONT_HERSHEY_SIMPLEX, 1, (255,255,255), 2)
+                # Solo predecir si se detectó y procesó bien la mano
+                pred = modelo.predict(img)
+                letra_actual = label_binarizer.inverse_transform(pred)[0]
+
+                # Estabilización por repetición
+                if letra_actual == ultima_letra:
+                    contador_repeticiones += 1
+                else:
+                    contador_repeticiones = 0
+                    ultima_letra = letra_actual
+
+                if contador_repeticiones >= repeticiones_necesarias:
+                    tiempo_actual = time.time()
+                    if tiempo_actual - ultimo_registro > 2.0:
+                        texto_completo += letra_actual
+                        ultimo_registro = tiempo_actual
+                    contador_repeticiones = 0
+
+                # Mostrar letra en la imagen
+                cv2.putText(frame, f"Letra: {letra_actual}", (10, 40), cv2.FONT_HERSHEY_SIMPLEX, 1, (0,255,0), 2)
+                cv2.putText(frame, f"Texto: {texto_completo}", (10, 80), cv2.FONT_HERSHEY_SIMPLEX, 1, (255,255,255), 2)
 
         # Codificar frame para enviar a navegador
         _, buffer = cv2.imencode('.jpg', frame)
